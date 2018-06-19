@@ -1,0 +1,12 @@
+---
+# tasks file for Prometheus
+
+# Running Task for Debian Platform
+- include: setup-Debian.yml
+  when: ansible_os_family == 'Debian'
+  tags: task_debian
+
+# Running Task for Redhat Platform
+- include: setup-RedHat.yml
+  when: ansible_os_family == 'RedHat'
+  tags: task_redhat

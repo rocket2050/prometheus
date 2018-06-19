@@ -1,0 +1,101 @@
+---
+
+# update system before installation
+#- name: update the system before installation
+#  become: true
+#  apt:
+#   update_cache: yes
+#  tags: cache_update
+
+- name: Add Prometheus user
+  become: true
+  user:
+    name: prometheus
+    shell: /bin/false
+#    create_home: no
+  tags: create_user
+
+- name: Check that the somefile.conf exists
+  stat:
+    path: /opt/prometheus-2.0.0.linux-amd64.tar.gz
+  register: stat_result
+
+- name: Download URL
+  become: true
+  get_url:
+   url: "https://github.com/prometheus/prometheus/releases/download/v2.0.0/prometheus-2.0.0.linux-amd64.tar.gz"
+   dest: /opt
+   mode: 600
+  register: tar_file
+  when: stat_result.stat.exists == False
+  #debug:
+   #msg: "tar_file"
+  tags: download_url
+
+- name: Create Prometheus directory
+  become: true
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: prometheus
+    group: prometheus
+  with_items:
+    - /etc/prometheus
+    - /var/lib/prometheus
+  tags: create_prom_dir
+
+- name: UnTar a file
+  become: true
+  unarchive:
+    src: /opt/prometheus-2.0.0.linux-amd64.tar.gz
+    dest: /opt
+    remote_src: yes
+  tags: untar_file
+
+- name: Copy binary files to /usr/local/bin
+  copy:
+    src: "{{ item }}"
+    dest: /usr/local/bin/
+    owner: prometheus
+    group: prometheus
+    remote_src: yes
+  with_items:
+    - /opt/prometheus-2.0.0.linux-amd64/prometheus
+    - /opt/prometheus-2.0.0.linux-amd64/promtool
+  tags: copy_binary
+
+- name: Create prometheus console directories
+  command: cp -arvf /opt/prometheus-2.0.0.linux-amd64/consoles /etc/prometheus/consoles
+
+- name: Create prometheus console librabries
+  command: cp -arvf /opt/prometheus-2.0.0.linux-amd64/console_libraries /etc/prometheus/console_libraries
+   
+- name: Set file permissions for console and console libraries
+  become: true
+  file:
+    path: "{{ item }}"
+    owner: prometheus
+    group: prometheus
+    mode: 0755
+    recurse: yes
+  with_items:
+    - /etc/prometheus/consoles
+    - /etc/prometheus/console_libraries
+
+- name: Copy templates
+  template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    owner: "{{ item.owner }}"
+    group: "{{ item.group }}"
+  with_items:
+    - { src: 'prometheus.yml', dest: '/etc/prometheus/prometheus.yml' , owner: 'prometheus' , group: 'prometheus' }
+    - { src: 'prometheus_service.yml', dest: '/etc/systemd/system/prometheus.service' , owner: 'root' , group: 'root' }
+
+- name: start Prmetheus service
+  become: true
+  systemd:
+    state: started
+    daemon_reload: yes
+    name: prometheus
+  tags: service_start
