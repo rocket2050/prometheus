@@ -65,7 +65,6 @@
   command: cp -arvf /opt/prometheus-2.0.0.linux-amd64/console_libraries /etc/prometheus/console_libraries
    
 - name: Set file permissions for console and console libraries
-  become: true
   file:
     path: "{{ item }}"
     owner: prometheus
