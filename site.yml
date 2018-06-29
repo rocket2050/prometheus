@@ -2,4 +2,3 @@
 - hosts: "{{ host }}"
   roles:
     - role: prometheus
-  become: yes
